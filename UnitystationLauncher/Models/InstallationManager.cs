@@ -7,6 +7,8 @@ using System.IO;
 using System.Reactive.Subjects;
 using UnitystationLauncher.Infrastructure;
 using Serilog;
+using System.Threading;
+using System.Reactive;
 
 namespace UnitystationLauncher.Models
 {
@@ -19,9 +21,22 @@ namespace UnitystationLauncher.Models
         public InstallationManager()
         {
             installationsSubject = new BehaviorSubject<IReadOnlyList<Installation>>(new Installation[0]);
-            Config.InstallationChanges
+
+            if (!Directory.Exists(Config.InstallationsPath))
+            {
+                throw new IOException("InstallationPath does not exist");
+            }
+
+            var fileWatcher = new FileSystemWatcher(Config.InstallationsPath) { EnableRaisingEvents = true, IncludeSubdirectories = true };
+            Observable.FromEventPattern<FileSystemEventHandler, FileSystemEventArgs>(
+                    h => fileWatcher.Changed += h,
+                    h => fileWatcher.Changed -= h)
+                .Do(o => Log.Debug("File refresh: {FileName}", o.EventArgs.Name))
+                .Select(_ => Unit.Default)
+                .Merge(Observable.Return(Unit.Default))
+                .ObserveOn(SynchronizationContext.Current)
                 .ThrottleSubsequent(TimeSpan.FromMilliseconds(200))
-                .Select(f =>
+                .Select(_ =>
                     Directory.EnumerateDirectories(Config.InstallationsPath)
                         .Select(dir => new Installation(dir))
                         .OrderByDescending(x => x.ForkName + x.BuildVersion)

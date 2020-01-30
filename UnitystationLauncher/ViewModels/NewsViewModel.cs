@@ -23,7 +23,7 @@ namespace UnitystationLauncher.ViewModels{
             PullRequestRequest options = new PullRequestRequest();
             ApiOptions apiOptions = new ApiOptions();
             apiOptions.PageCount = 1;
-            apiOptions.PageSize = 10;
+            apiOptions.PageSize = 20;
             options.State = ItemStateFilter.Closed;
 
             try

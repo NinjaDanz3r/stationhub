@@ -24,36 +24,34 @@
         </Button>
       </DockPanel>
     </Border>
-    <DockPanel Name="Columns">
-      <Border DockPanel.Dock="Left" HorizontalAlignment="Left" Width="200">
+    <Grid Width="200" DockPanel.Dock="Left" RowDefinitions="auto *">
+      <ListBox DockPanel.Dock="Top" Items="{Binding Panels}" SelectedItem="{Binding SelectedPanel}" BorderThickness="0">
+        <ListBox.Styles>
+          <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="#4f769d" />
+          </Style>
+          <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#295077" />
+          </Style>
+        </ListBox.Styles>
+        <ListBox.DataTemplates>
+          <DataTemplate>
+            <DockPanel Height="50" Width="180">
+              <Image DockPanel.Dock="Left" Margin="10" Width="20" Height="20" Source="{Binding Icon}" HorizontalAlignment="Left"/>
+              <TextBlock Grid.Column="1" Margin="0 0 0 3" Text="{Binding Name}" FontSize="20" TextAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Left" MaxWidth="150"/>
+            </DockPanel>
+          </DataTemplate>
+        </ListBox.DataTemplates>
+      </ListBox>
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Margin="5" FontSize="14" HorizontalAlignment="Center">Latest Merged PRs</TextBlock>
         <StackPanel>
-          <ListBox Items="{Binding Panels}" SelectedItem="{Binding SelectedPanel}" BorderThickness="0">
-            <ListBox.Styles>
-              <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-                <Setter Property="Background" Value="#4f769d" />
-              </Style>
-              <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-                <Setter Property="Background" Value="#295077" />
-              </Style>
-            </ListBox.Styles>
-            <ListBox.DataTemplates>
-              <DataTemplate>
-                <DockPanel Height="50" Width="180">
-                  <Image DockPanel.Dock="Left" Margin="10" Width="20" Height="20" Source="{Binding Icon}" HorizontalAlignment="Left"/>
-                  <TextBlock Grid.Column="1" Margin="0 0 0 3" Text="{Binding Name}" FontSize="20" TextAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Left" MaxWidth="150"/>
-                </DockPanel>
-              </DataTemplate>
-            </ListBox.DataTemplates>
-          </ListBox>
-          <TextBlock Margin="5" FontSize="14" HorizontalAlignment="Center">Latest Merged PRs</TextBlock>
-          <ScrollViewer VerticalScrollBarVisibility="Visible" Height="363">
-            <ContentControl Content="{Binding News}" HorizontalAlignment="Center" Width="{Binding ElementName=Columns, Path=ColumnDefinitions[0].ViewPortWidth}"/>
+          <ScrollViewer VerticalScrollBarVisibility="Visible" Height="{Binding $parent.ActualHeight}">
+            <ContentControl Content="{Binding News}" HorizontalAlignment="Center"/>
           </ScrollViewer>
         </StackPanel>
-      </Border>
-      <Border>
-        <UserControl Grid.Column="1" Content="{Binding SelectedPanel}"/>
-      </Border>
-    </DockPanel>
+      </DockPanel>
+    </Grid>
+    <UserControl Content="{Binding SelectedPanel}"/>
   </DockPanel>
 </UserControl>

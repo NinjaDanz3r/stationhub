@@ -16,9 +16,8 @@ namespace UnitystationLauncher.Models
         {
             if (!Directory.Exists(Config.InstallationsPath))
             {
-                Directory.CreateDirectory(Config.InstallationsPath);
+                throw new IOException("InstallationPath does not exist");
             }
-
             var fw = new FileSystemWatcher(Config.InstallationsPath) { EnableRaisingEvents = true };
             var bs = new BehaviorSubject<IReadOnlyList<string>>(GetDirectories());
 

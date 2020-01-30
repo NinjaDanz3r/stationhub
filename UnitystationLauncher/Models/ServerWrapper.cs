@@ -15,16 +15,16 @@ using Humanizer.Bytes;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using Avalonia.Controls.ApplicationLifetimes;
+using Humanizer;
 
 namespace UnitystationLauncher.Models
 {
     public class ServerWrapper : Server
     {
-        private AuthManager authManager;
-        private InstallationManager installManager;
-        private CancellationTokenSource cancelSource;
-        public ServerWrapper(Server server, AuthManager authManager, 
-            InstallationManager installManager)
+        private readonly AuthManager authManager;
+        private readonly InstallationManager installManager;
+        private CancellationTokenSource? cancelSource;
+        public ServerWrapper(Server server, AuthManager authManager, InstallationManager installManager)
         {
             this.authManager = authManager;
             this.installManager = installManager;
@@ -41,12 +41,7 @@ namespace UnitystationLauncher.Models
             OSXDownload = server.OSXDownload;
             LinuxDownload = server.LinuxDownload;
 
-            if (!Directory.Exists(Config.InstallationsPath))
-            {
-                Directory.CreateDirectory(Config.InstallationsPath);
-            }
-
-            CanPlay.Subscribe(x => OnCanPlayChange(x));
+            CanPlay.Subscribe(OnCanPlayChange);
             CheckIfCanPlay();
             Start = ReactiveUI.ReactiveCommand.Create(StartImp, null);
             Ping pingSender = new Ping();
@@ -61,6 +56,8 @@ namespace UnitystationLauncher.Models
         public ReactiveProperty<string> RoundTrip { get; } = new ReactiveProperty<string>();
         public Subject<int> Progress { get; set; } = new Subject<int>();
         public ReactiveUI.ReactiveCommand<Unit, Unit> Start { get; }
+
+        bool ClientInstalled => Installation.FindExecutable(InstallationPath) != null;
 
         public void PingCompletedCallback(object sender, PingCompletedEventArgs e)
         {
@@ -90,18 +87,14 @@ namespace UnitystationLauncher.Models
 
         private void OnCanPlayChange(bool canPlay)
         {
-            if (canPlay)
-            {
-                ButtonText.Value = "PLAY";
-            }
-            else
-            {
-                ButtonText.Value = "DOWNLOAD";
-            }
+            ButtonText.Value = canPlay ? "PLAY" : "DOWNLOAD";
         }
 
         public async Task DownloadAsync(CancellationToken cancelToken)
         {
+            ButtonText.Value = "CANCEL";
+            DownloadProgText.Value = "Connecting..";
+            IsDownloading.Value = true;
             Log.Information("Download requested...");
             Log.Information("Installation path: \"{Path}\"", InstallationPath);
 
@@ -124,27 +117,18 @@ namespace UnitystationLauncher.Models
             var webResponse = await webRequest.GetResponseAsync();
             var responseStream = webResponse.GetResponseStream();
             Log.Information("Download connection established");
-            using var progStream = new ProgressStream(responseStream);
             var length = webResponse.ContentLength;
-            var maxFileSize = ByteSize.FromBytes(length);
-            
-            progStream.Progress
-                .Select(p => (int)(p * 100 / length))
-                .DistinctUntilChanged()
+            using var progStream = new ProgressStream(responseStream);
+            var throttledProgress = progStream.Progress
+                .DistinctUntilChanged(p => p * 100 / length);
+
+            throttledProgress
                 .Subscribe(p =>
                 {
-                    
-                    if (cancelToken.IsCancellationRequested)
-                    {
-                        progStream.Inner.Dispose();
-                        Progress.OnNext(0);
-                        return;
-                    }
-                    var downloadedAmt = (int)((float)maxFileSize.Megabytes * ((float)p / 100f));
-                    DownloadProgText.Value = $" {downloadedAmt} / {(int)maxFileSize.Megabytes} MB";
-                    Progress.OnNext(p);
+                    DownloadProgText.Value = $"{p.Bytes().ToString("###")} / {length.Bytes().ToString("###")}";
                     Log.Information("Progress: {prog}", p);
                 });
+            throttledProgress.Subscribe(p => Progress.OnNext((int)(p * 100 / length)));
 
             await Task.Run(() =>
             {
@@ -162,26 +146,18 @@ namespace UnitystationLauncher.Models
                 {
                     Log.Information("Extracting stopped");
                 }
-            });
-        }
-
-        bool ClientInstalled
-        {
-            get
-            {
-                return Directory.Exists(InstallationPath) &&
-                     Installation.FindExecutable(InstallationPath) != null;
-            }
+            }, cancelToken);
+            IsDownloading.Value = false;
         }
 
         private async void StartImp()
         {
             if (IsDownloading.Value)
             {
-                cancelSource.Cancel();
+                cancelSource?.Cancel();
                 if (Directory.Exists(InstallationPath))
                 {
-                    Directory.Delete(InstallationPath);
+                    Directory.Delete(InstallationPath, true);
                 }
                 Log.Information("User cancelled download");
                 return;
@@ -217,11 +193,7 @@ namespace UnitystationLauncher.Models
             {
                 //DO DOWNLOAD
                 cancelSource = new CancellationTokenSource();
-                ButtonText.Value = "CANCEL";
-                DownloadProgText.Value = "Connecting..";
-                IsDownloading.Value = true;
                 await DownloadAsync(cancelSource.Token);
-                IsDownloading.Value = false;
                 CheckIfCanPlay();
                 installManager.TryAutoRemove();
             }

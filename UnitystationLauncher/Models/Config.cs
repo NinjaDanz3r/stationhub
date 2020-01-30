@@ -33,33 +33,19 @@ namespace UnitystationLauncher.Models
         public static HubClientConfig serverHubClientConfig;
 
         public static string InstallationsPath => Path.Combine(Environment.CurrentDirectory, InstallationFolder);
-        public static string RootFolder { get; }
-        public static FileSystemWatcher FileWatcher { get; }
-        public static IObservable<Unit> InstallationChanges { get; }
+        public static string RootFolder => rootFolder ?? "";
+        private static string rootFolder;
 
-        static Config()
+        public static void Init()
         {
-            Directory.CreateDirectory(InstallationsPath);
-
-            FileWatcher = new FileSystemWatcher(InstallationsPath) { EnableRaisingEvents = true, IncludeSubdirectories = true };
-
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                RootFolder = Environment.CurrentDirectory;
+                rootFolder = Environment.CurrentDirectory;
             }
             else
             {
-                RootFolder = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
+                rootFolder = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
             }
-
-            InstallationChanges = Observable.Merge(
-                Observable.FromEventPattern<FileSystemEventHandler, FileSystemEventArgs>(
-                    h => FileWatcher.Changed += h,
-                    h => FileWatcher.Changed -= h)
-                .Do(o => Log.Debug("File refresh: {FileName}", o.EventArgs.Name))
-                .Select(e => Unit.Default),
-                Observable.Return(Unit.Default))
-                .ObserveOn(SynchronizationContext.Current);
         }
 
         public static void SetPermissions(string path)

@@ -5,17 +5,11 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="450"
         x:Class="UnitystationLauncher.Views.MainWindow"
-        CanResize="False"
         Icon="/Assets/Ian512.png"
         Title="Station Hub"
         WindowStartupLocation="CenterScreen"
-        Width="800"
-        Height="555"
         Background="#19212c">
   <Grid>
-    <Grid.Background>
-      <ImageBrush Source="/Assets/bg.jpg" />
-    </Grid.Background>
     <ContentControl Content="{Binding Content}" />
   </Grid>
 </Window>
